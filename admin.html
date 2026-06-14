@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -265,11 +266,15 @@ function generate() {
     createdAt: new Date().toLocaleString('zh-CN')
   };
 
-  // 压缩并编码到URL参数（使用标准UTF-8 Base64编码）
+  // 编码：JSON → UTF-8 bytes → Base64（最可靠方式）
   const jsonStr = JSON.stringify(orderData);
-  const encoded = btoa(Array.from(encodeURIComponent(jsonStr)).map(c => 
-    c.charCodeAt(0) < 256 ? String.fromCharCode(c.charCodeAt(0)) : c
-  ).join(''))
+  const encoder = new TextEncoder();
+  const data = encoder.encode(jsonStr);
+  let binary = '';
+  for (let i = 0; i < data.length; i++) {
+    binary += String.fromCharCode(data[i]);
+  }
+  const encoded = btoa(binary)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
