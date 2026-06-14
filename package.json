@@ -1,0 +1,12 @@
+{
+  "name": "repair-quote",
+  "version": "1.0.0",
+  "description": "``` repair-quote/ ├── admin.html    ← 管理员：填写报价、生成链接 └── confirm.html  ← 客户：查看报价、签字确认 ```",
+  "main": "test-link.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

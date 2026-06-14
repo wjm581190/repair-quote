@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>维修报价确认</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+           background: #f5f5f5; min-height: 100vh; }
+    .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+    .header { background: linear-gradient(135deg, #1890ff, #0d6efd); color: white; padding: 24px 20px;
+              border-radius: 12px 12px 0 0; text-align: center; }
+    .header .icon { font-size: 40px; margin-bottom: 8px; }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    .card { background: white; border-radius: 0 0 12px 12px; margin-top: -1px; padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 12px; }
+    .card+.card { border-radius: 12px; margin-top: 12px; }
+    .card-title { font-size: 14px; color: #999; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+    .info-row { display: flex; justify-content: space-between; align-items: flex-start;
+                padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #666; font-size: 14px; flex-shrink: 0; }
+    .info-value { color: #333; font-size: 14px; text-align: right; font-weight: 500; max-width: 60%; }
+    .service-tag { display: inline-block; background: #e6f7ff; color: #1890ff;
+                   padding: 4px 10px; border-radius: 20px; font-size: 13px; }
+    .fee-item { display: flex; justify-content: space-between; padding: 8px 0; }
+    .fee-item .name { color: #555; font-size: 14px; }
+    .fee-item .amount { color: #333; font-size: 14px; font-weight: 500; }
+    .fee-total { border-top: 2px solid #1890ff; margin-top: 8px; padding-top: 12px;
+                 display: flex; justify-content: space-between; align-items: center; }
+    .fee-total .label { font-size: 15px; color: #333; font-weight: 600; }
+    .fee-total .amount { font-size: 22px; color: #ff4d4f; font-weight: 700; }
+    .agree-box { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; }
+    .agree-box input[type="checkbox"] { width: 18px; height: 18px; accent-color: #1890ff; flex-shrink: 0; margin-top: 2px; }
+    .agree-box label { font-size: 13px; color: #666; line-height: 1.6; }
+    .sig-label { font-size: 13px; color: #999; margin-bottom: 8px; }
+    #sig-canvas { width: 100%; height: 160px; border: 2px dashed #d9d9d9; border-radius: 8px;
+                  background: #fafafa; display: block; touch-action: none; cursor: crosshair; }
+    .sig-tip { font-size: 12px; color: #bbb; text-align: center; margin-top: 6px; }
+    .btn-clear { display: block; margin: 8px auto 0; background: none; border: none;
+                 color: #999; font-size: 13px; cursor: pointer; padding: 4px 12px; }
+    .btn-clear:hover { color: #666; }
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white;
+                  padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
+                  box-shadow: 0 -2px 12px rgba(0,0,0,0.08); z-index: 100; }
+    .btn-confirm { width: 100%; height: 50px; background: linear-gradient(135deg, #1890ff, #0d6efd);
+                   color: white; border: none; border-radius: 25px; font-size: 16px;
+                   font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+    .btn-confirm:active { opacity: 0.85; }
+    .btn-confirm:disabled { background: #ccc; cursor: not-allowed; }
+
+    /* 成功页 */
+    .success-panel { display: none; text-align: center; padding: 60px 20px; }
+    .success-panel .check { font-size: 64px; margin-bottom: 16px; }
+    .success-panel h2 { font-size: 20px; color: #333; margin-bottom: 8px; }
+    .success-panel p { font-size: 14px; color: #888; line-height: 1.8; }
+    .success-panel .sig-preview { margin: 20px auto; max-width: 280px; border: 1px solid #eee;
+                                    border-radius: 8px; padding: 10px; background: #fafafa; }
+    .success-panel .sig-preview img { width: 100%; }
+    .success-panel .order-info { background: white; border-radius: 12px; padding: 20px;
+                                 margin-top: 20px; text-align: left; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+    /* 过期页 */
+    .expired-panel { display: none; text-align: center; padding: 60px 20px; }
+    .expired-panel .icon { font-size: 64px; margin-bottom: 16px; }
+    .expired-panel h2 { font-size: 20px; color: #ff4d4f; margin-bottom: 8px; }
+    .expired-panel p { font-size: 14px; color: #888; }
+
+    .padding-bottom { height: 80px; }
+    .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+             background: rgba(0,0,0,0.75); color: white; padding: 12px 24px; border-radius: 8px;
+             font-size: 14px; z-index: 300; display: none; white-space: nowrap; }
+    .toast.show { display: block; animation: fadeInOut 2s forwards; }
+    @keyframes fadeInOut { 0%{opacity:0} 20%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
+  </style>
+</head>
+<body>
+
+<div class="container" id="mainPanel">
+  <div class="header">
+    <div class="icon" id="headerIcon">🖥️</div>
+    <h1 id="headerTitle">维修服务报价单</h1>
+    <p id="orderInfo">报价单号：—</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 服务信息</div>
+    <div class="info-row">
+      <span class="info-label">客户姓名</span>
+      <span class="info-value" id="vName">—</span>
+    </div>
+    <div class="info-row" id="rowPhone" style="display:none">
+      <span class="info-label">联系电话</span>
+      <span class="info-value" id="vPhone">—</span>
+    </div>
+    <div class="info-row" id="rowAddr" style="display:none">
+      <span class="info-label">服务地址</span>
+      <span class="info-value" id="vAddr">—</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">服务类型</span>
+      <span class="info-value"><span class="service-tag" id="vType">—</span></span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">问题描述</span>
+      <span class="info-value" id="vDesc">—</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💰 费用明细</div>
+    <div id="feeList"></div>
+    <div class="fee-total">
+      <span class="label">合计</span>
+      <span class="amount" id="vTotal">¥0</span>
+    </div>
+    <div style="margin-top:10px; font-size:12px; color:#999; text-align:right;">
+      有效期至：<span id="vExpire">—</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">✍️ 签字确认</div>
+    <div class="agree-box">
+      <input type="checkbox" id="agreeCheck">
+      <label for="agreeCheck">
+        我已阅读并同意《维修服务协议》，确认以上服务内容和费用。
+      </label>
+    </div>
+    <div class="sig-label">请在下方签字确认</div>
+    <canvas id="sig-canvas"></canvas>
+    <div class="sig-tip">手指或鼠标书写</div>
+    <button class="btn-clear" onclick="clearSig()">🗑️ 清除重签</button>
+  </div>
+  <div class="padding-bottom"></div>
+</div>
+
+<!-- 已签字成功页 -->
+<div class="container" id="signedPanel" style="display:none;">
+  <div class="success-panel">
+    <div class="check">✅</div>
+    <h2>已确认签字</h2>
+    <p>您的签字已保存，请等待师傅联系上门服务。</p>
+    <div class="sig-preview" id="sigPreview"></div>
+    <div class="order-info">
+      <div class="info-row">
+        <span class="info-label">签字时间</span>
+        <span class="info-value" id="signTime">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">确认内容</span>
+        <span class="info-value" id="signSummary">—</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 过期页 -->
+<div class="container" id="expiredPanel" style="display:none;">
+  <div class="expired-panel">
+    <div class="icon">⏰</div>
+    <h2>报价单已过期</h2>
+    <p>此报价单已超过有效期，请联系工作人员获取最新报价。</p>
+  </div>
+</div>
+
+<div class="bottom-bar" id="bottomBar">
+  <button class="btn-confirm" id="confirmBtn" onclick="submitSig()" disabled>
+    确认签字
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script>
+let signaturePad = null;
+let orderData = null;
+
+// 图标映射
+const ICONS = { '电脑维修': '🖥️', '组装电脑': '🖱️', '监控安装维修': '📹', '家庭组网': '📶', '其他': '🔧' };
+
+window.onload = function() {
+  const param = getQuery('d');
+  if (!param) {
+    document.getElementById('mainPanel').innerHTML = '<div style="text-align:center;padding:60px 20px;"><div style="font-size:64px;margin-bottom:16px;">❌</div><h2 style="color:#999;">无效的报价单链接</h2><p style="color:#bbb;margin-top:8px;">请联系工作人员获取正确链接</p></div>';
+    document.getElementById('bottomBar').style.display = 'none';
+    return;
+  }
+
+  try {
+    // 尝试多种解码方式兼容不同浏览器/协议
+    let raw = param;
+    let decoded = '';
+    // 先尝试URI安全Base64解码
+    try {
+      const fixed = (raw.replace(/-/g, '+').replace(/_/g, '/')) + '==='.slice(0, (raw.length + 3) % 4 || 0);
+      decoded = decodeURIComponent(escape(atob(fixed)));
+    } catch(e1) {
+      try {
+        decoded = atob(decodeURIComponent(raw));
+      } catch(e2) {
+        decoded = atob(raw);
+      }
+    }
+    orderData = JSON.parse(decoded);
+  } catch (e) {
+    // 调试：显示原始参数帮助排查
+    console.error('Parse error:', e.message, 'param length:', param ? param.length : 0);
+    document.getElementById('mainPanel').innerHTML = '<div style="text-align:center;padding:60px 20px;"><div style="font-size:64px;margin-bottom:16px;">❌</div><h2 style="color:#999;">链接数据异常</h2><p style="color:#bbb;margin-top:8px;">请联系工作人员重新发送</p><p style="color:#ccc;font-size:12px;margin-top:20px;">Debug: param=' + (param ? param.substring(0,50) + '...' : 'empty') + '</p></div>';
+    document.getElementById('bottomBar').style.display = 'none';
+    return;
+  }
+
+  // 检查是否已签字（存在localStorage记录）
+  const signedKey = 'signed_' + orderData.id;
+  const signedRecord = localStorage.getItem(signedKey);
+  if (signedRecord) {
+    showSigned(JSON.parse(signedRecord));
+    return;
+  }
+
+  // 检查是否过期
+  if (orderData.expireTime && new Date(orderData.expireTime) < new Date()) {
+    document.getElementById('mainPanel').style.display = 'none';
+    document.getElementById('expiredPanel').style.display = 'block';
+    document.getElementById('bottomBar').style.display = 'none';
+    return;
+  }
+
+  // 渲染数据
+  renderOrder(orderData);
+  initSignaturePad();
+
+  document.getElementById('agreeCheck').addEventListener('change', updateBtn);
+  document.getElementById('sig-canvas').addEventListener('mouseup', updateBtn);
+  document.getElementById('sig-canvas').addEventListener('touchend', updateBtn);
+};
+
+function renderOrder(d) {
+  const icon = ICONS[d.serviceType] || '🔧';
+  document.getElementById('headerIcon').textContent = icon;
+  document.getElementById('headerTitle').textContent = icon + ' ' + d.serviceType + '报价单';
+  document.getElementById('orderInfo').textContent = '报价单号：' + d.id;
+
+  document.getElementById('vName').textContent = d.customerName;
+  if (d.customerPhone) {
+    document.getElementById('rowPhone').style.display = 'flex';
+    document.getElementById('vPhone').textContent = d.customerPhone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+  }
+  if (d.address) {
+    document.getElementById('rowAddr').style.display = 'flex';
+    document.getElementById('vAddr').textContent = d.address;
+  }
+  document.getElementById('vType').textContent = icon + ' ' + d.serviceType;
+  document.getElementById('vDesc').textContent = d.problemDesc;
+
+  // 费用列表
+  let feeHtml = '';
+  (d.fees || []).forEach(f => {
+    feeHtml += `<div class="fee-item"><span class="name">${esc(f.name)}</span><span class="amount">¥${f.amount}</span></div>`;
+  });
+  document.getElementById('feeList').innerHTML = feeHtml;
+  document.getElementById('vTotal').textContent = '¥' + d.total;
+
+  if (d.expireTime) {
+    document.getElementById('vExpire').textContent = d.expireTime.replace('T', ' ');
+  } else {
+    document.getElementById('vExpire').textContent = d.createdAt;
+  }
+}
+
+function initSignaturePad() {
+  const canvas = document.getElementById('sig-canvas');
+  const ratio = Math.max(window.devicePixelRatio || 1, 1);
+  canvas.width = canvas.offsetWidth * ratio;
+  canvas.height = 160 * ratio;
+  canvas.getContext('2d').scale(ratio, ratio);
+  signaturePad = new SignaturePad(canvas, { backgroundColor: '#fafafa', penColor: '#333', minWidth: 1.5, maxWidth: 3 });
+}
+
+function clearSig() {
+  signaturePad.clear();
+  updateBtn();
+}
+
+function updateBtn() {
+  const ok = document.getElementById('agreeCheck').checked && !signaturePad.isEmpty();
+  document.getElementById('confirmBtn').disabled = !ok;
+}
+
+function submitSig() {
+  if (signaturePad.isEmpty()) { toast('请先签字'); return; }
+  if (!document.getElementById('agreeCheck').checked) { toast('请先同意服务协议'); return; }
+
+  const sigData = signaturePad.toDataURL('image/png');
+  const signTime = new Date().toLocaleString('zh-CN');
+
+  // 保存签字记录到localStorage
+  const record = {
+    id: orderData.id,
+    signTime: signTime,
+    signature: sigData,
+    orderData: orderData
+  };
+  localStorage.setItem('signed_' + orderData.id, JSON.stringify(record));
+
+  showSigned(record);
+}
+
+function showSigned(record) {
+  document.getElementById('mainPanel').style.display = 'none';
+  document.getElementById('bottomBar').style.display = 'none';
+  const panel = document.getElementById('signedPanel');
+  panel.style.display = 'block';
+  document.getElementById('sigPreview').innerHTML = '<img src="' + record.signature + '">';
+  document.getElementById('signTime').textContent = record.signTime;
+  document.getElementById('signSummary').textContent = record.orderData.serviceType + ' - ¥' + record.orderData.total;
+}
+
+function getQuery(key) { return new URLSearchParams(location.search).get(key); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>

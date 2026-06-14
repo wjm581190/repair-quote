@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>创建报价单 - 维修报价</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+           background: #f0f2f5; min-height: 100vh; }
+    .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+    .header { background: linear-gradient(135deg, #1890ff, #0d6efd); color: white; padding: 24px 20px;
+              border-radius: 12px; text-align: center; margin-bottom: 16px; }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card-title { font-size: 15px; color: #333; font-weight: 600; margin-bottom: 16px;
+                   padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; font-weight: 500; }
+    .form-input { width: 100%; height: 44px; border: 1px solid #d9d9d9; border-radius: 8px;
+                  padding: 0 12px; font-size: 14px; color: #333; outline: none; transition: border-color 0.2s; }
+    .form-input:focus { border-color: #1890ff; box-shadow: 0 0 0 2px rgba(24,144,255,0.1); }
+    .form-textarea { width: 100%; height: 80px; border: 1px solid #d9d9d9; border-radius: 8px;
+                     padding: 10px 12px; font-size: 14px; color: #333; outline: none; resize: none;
+                     transition: border-color 0.2s; font-family: inherit; }
+    .form-textarea:focus { border-color: #1890ff; box-shadow: 0 0 0 2px rgba(24,144,255,0.1); }
+    .form-select { width: 100%; height: 44px; border: 1px solid #d9d9d9; border-radius: 8px;
+                   padding: 0 12px; font-size: 14px; color: #333; outline: none; background: white;
+                   -webkit-appearance: none; appearance: none;
+                   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8.825L1.175 4 2.238 2.938 6 6.7 9.763 2.937 10.825 4z'/%3E%3C/svg%3E");
+                   background-repeat: no-repeat; background-position: right 12px center; }
+    .form-select:focus { border-color: #1890ff; }
+    .fee-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .fee-row .fee-name { flex: 1; }
+    .fee-row .fee-name input { width: 100%; }
+    .fee-row .fee-amount { width: 120px; }
+    .fee-row .fee-amount input { width: 100%; }
+    .fee-row .fee-del { width: 32px; height: 32px; border: none; background: #fff1f0; color: #ff4d4f;
+                        border-radius: 6px; font-size: 16px; cursor: pointer; flex-shrink: 0; }
+    .fee-total-box { background: #e6f7ff; border-radius: 8px; padding: 14px; margin-top: 12px;
+                     display: flex; justify-content: space-between; align-items: center; }
+    .fee-total-box .label { font-size: 15px; color: #333; font-weight: 600; }
+    .fee-total-box .amount { font-size: 24px; color: #ff4d4f; font-weight: 700; }
+    .btn-add-fee { display: block; width: 100%; height: 40px; border: 1px dashed #d9d9d9;
+                    background: none; color: #1890ff; font-size: 13px; border-radius: 8px;
+                    cursor: pointer; margin-top: 10px; }
+    .btn-add-fee:hover { border-color: #1890ff; background: #f0f7ff; }
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white;
+                  padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
+                  box-shadow: 0 -2px 12px rgba(0,0,0,0.08); z-index: 100; max-width: 480px; margin: 0 auto; }
+    .btn-generate { width: 100%; height: 50px; background: linear-gradient(135deg, #1890ff, #0d6efd);
+                    color: white; border: none; border-radius: 25px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+    .btn-generate:active { opacity: 0.85; }
+    .padding-bottom { height: 80px; }
+
+    /* 生成的链接 */
+    .result-card { background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 12px; padding: 20px; margin-bottom: 12px; }
+    .result-card h3 { font-size: 15px; color: #389e0d; margin-bottom: 12px; }
+    .result-link { background: white; border: 1px solid #d9d9d9; border-radius: 8px; padding: 12px;
+                   font-size: 13px; color: #333; word-break: break-all; line-height: 1.6;
+                   margin-bottom: 12px; user-select: all; }
+    .btn-copy { width: 100%; height: 44px; background: #52c41a; color: white; border: none;
+                border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-copy:active { opacity: 0.85; }
+    .btn-new { width: 100%; height: 44px; background: white; color: #1890ff; border: 1px solid #1890ff;
+               border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+
+    /* Toast */
+    .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+             background: rgba(0,0,0,0.75); color: white; padding: 12px 24px; border-radius: 8px;
+             font-size: 14px; z-index: 300; display: none; white-space: nowrap; }
+    .toast.show { display: block; animation: fadeInOut 2s forwards; }
+    @keyframes fadeInOut { 0%{opacity:0} 20%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
+
+    /* 有效期 */
+    .expire-row { display: flex; align-items: center; gap: 10px; }
+    .expire-row input[type="datetime-local"] { flex: 1; }
+    .expire-tip { font-size: 11px; color: #999; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="container" id="formPanel">
+  <!-- 头部 -->
+  <div class="header">
+    <h1>📋 创建维修报价单</h1>
+    <p>填写信息后生成链接发给客户</p>
+  </div>
+
+  <!-- 客户信息 -->
+  <div class="card">
+    <div class="card-title">👤 客户信息</div>
+    <div class="form-group">
+      <label class="form-label">客户姓名 *</label>
+      <input class="form-input" id="cName" placeholder="例：张先生">
+    </div>
+    <div class="form-group">
+      <label class="form-label">联系电话</label>
+      <input class="form-input" id="cPhone" type="tel" placeholder="例：13812345678">
+    </div>
+    <div class="form-group">
+      <label class="form-label">服务地址</label>
+      <input class="form-input" id="cAddr" placeholder="例：南山区科技园xxx栋">
+    </div>
+  </div>
+
+  <!-- 服务信息 -->
+  <div class="card">
+    <div class="card-title">🔧 服务信息</div>
+    <div class="form-group">
+      <label class="form-label">服务类型 *</label>
+      <select class="form-select" id="sType">
+        <option value="">请选择</option>
+        <option value="电脑维修">🖥️ 电脑维修</option>
+        <option value="组装电脑">🖱️ 组装电脑</option>
+        <option value="监控安装维修">📹 监控安装维修</option>
+        <option value="家庭组网">📶 家庭组网</option>
+        <option value="其他">🔧 其他</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">问题描述 *</label>
+      <textarea class="form-textarea" id="sDesc" placeholder="例：笔记本蓝屏无法开机，疑似硬盘故障"></textarea>
+    </div>
+  </div>
+
+  <!-- 费用明细 -->
+  <div class="card">
+    <div class="card-title">💰 费用明细</div>
+    <div id="feeItems">
+      <div class="fee-row">
+        <div class="fee-name"><input class="form-input" value="上门检测费" placeholder="费用名称"></div>
+        <div class="fee-amount"><input class="form-input" type="number" value="50" min="0" placeholder="金额"></div>
+      </div>
+      <div class="fee-row">
+        <div class="fee-name"><input class="form-input" value="维修/服务费" placeholder="费用名称"></div>
+        <div class="fee-amount"><input class="form-input" type="number" value="0" min="0" placeholder="金额"></div>
+      </div>
+    </div>
+    <button class="btn-add-fee" onclick="addFeeItem()">+ 添加费用项</button>
+    <div class="fee-total-box">
+      <span class="label">合计</span>
+      <span class="amount" id="totalDisplay">¥50</span>
+    </div>
+  </div>
+
+  <!-- 有效期 -->
+  <div class="card">
+    <div class="card-title">⏰ 报价有效期</div>
+    <div class="expire-row">
+      <input class="form-input" type="datetime-local" id="expireTime">
+    </div>
+    <div class="expire-tip">不填则默认3天后过期</div>
+  </div>
+
+  <div class="padding-bottom"></div>
+</div>
+
+<!-- 生成结果 -->
+<div class="container" id="resultPanel" style="display:none;">
+  <div class="header">
+    <h1>✅ 报价单已生成</h1>
+    <p>复制链接发给客户即可</p>
+  </div>
+  <div class="result-card">
+    <h3>📎 客户签字链接（长按复制）</h3>
+    <div class="result-link" id="resultLink"></div>
+    <button class="btn-copy" onclick="copyLink()">📋 复制链接</button>
+    <button class="btn-new" onclick="createNew()">📄 再创建一个</button>
+  </div>
+  <div class="card" style="margin-top:12px;">
+    <div class="card-title">📌 使用说明</div>
+    <div style="font-size:13px; color:#666; line-height:2;">
+      1. 点击上方「复制链接」<br>
+      2. 打开微信，粘贴给客户<br>
+      3. 客户点开链接 → 查看报价 → 签字确认<br>
+      4. 签字后图片保存在链接中，你打开链接即可查看<br>
+    </div>
+  </div>
+</div>
+
+<!-- 底部按钮 -->
+<div class="bottom-bar" id="bottomBar">
+  <button class="btn-generate" onclick="generate()">生成报价单链接</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== 配置区 ==========
+// 签字页面的地址，部署后替换为实际地址
+// 自动检测：线上用COS地址，本地测试用同目录confirm.html
+const isLocal = location.protocol === 'file:';
+const SIGN_PAGE_URL = isLocal
+  ? location.href.replace('admin.html', 'confirm.html')
+  : 'https://wxdzd-1359634598.cos.ap-beijing.myqcloud.com/confirm.html';
+
+// 监听金额变化，实时计算合计
+document.getElementById('feeItems').addEventListener('input', calcTotal);
+
+// 设置默认有效期（3天后）
+window.onload = function() {
+  const now = new Date();
+  now.setDate(now.getDate() + 3);
+  now.setHours(18, 0, 0, 0);
+  const ts = now.toISOString().slice(0, 16);
+  document.getElementById('expireTime').value = ts;
+};
+
+function addFeeItem() {
+  const div = document.createElement('div');
+  div.className = 'fee-row';
+  div.innerHTML = `
+    <div class="fee-name"><input class="form-input" placeholder="费用名称"></div>
+    <div class="fee-amount"><input class="form-input" type="number" min="0" placeholder="金额" oninput="calcTotal()"></div>
+    <button class="fee-del" onclick="this.parentElement.remove();calcTotal()">×</button>
+  `;
+  document.getElementById('feeItems').appendChild(div);
+  calcTotal();
+}
+
+function calcTotal() {
+  let total = 0;
+  document.querySelectorAll('#feeItems .fee-amount input').forEach(inp => {
+    total += parseFloat(inp.value) || 0;
+  });
+  document.getElementById('totalDisplay').textContent = '¥' + total;
+}
+
+// ========== 生成报价单 ==========
+function generate() {
+  const name = document.getElementById('cName').value.trim();
+  const type = document.getElementById('sType').value;
+  const desc = document.getElementById('sDesc').value.trim();
+
+  if (!name) { toast('请填写客户姓名'); return; }
+  if (!type) { toast('请选择服务类型'); return; }
+  if (!desc) { toast('请填写问题描述'); return; }
+
+  // 收集费用
+  const fees = [];
+  document.querySelectorAll('#feeItems .fee-row').forEach(row => {
+    const fname = row.querySelector('.fee-name input').value.trim();
+    const famount = parseFloat(row.querySelector('.fee-amount input').value) || 0;
+    if (fname) fees.push({ name: fname, amount: famount });
+  });
+
+  const total = fees.reduce((s, f) => s + f.amount, 0);
+
+  // 构建报价数据
+  const orderData = {
+    id: 'QT' + Date.now().toString(36).toUpperCase(),
+    customerName: name,
+    customerPhone: document.getElementById('cPhone').value.trim(),
+    address: document.getElementById('cAddr').value.trim(),
+    serviceType: type,
+    problemDesc: desc,
+    fees: fees,
+    total: total,
+    expireTime: document.getElementById('expireTime').value || '',
+    createdAt: new Date().toLocaleString('zh-CN')
+  };
+
+  // 压缩并编码到URL参数（使用URI安全编码）
+  const jsonStr = JSON.stringify(orderData);
+  const encoded = btoa(unescape(encodeURIComponent(jsonStr)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  const link = SIGN_PAGE_URL + '?d=' + encodeURIComponent(encoded);
+
+  // 显示结果
+  document.getElementById('resultLink').textContent = link;
+  document.getElementById('formPanel').style.display = 'none';
+  document.getElementById('resultPanel').style.display = 'block';
+  document.getElementById('bottomBar').style.display = 'none';
+}
+
+function copyLink() {
+  const text = document.getElementById('resultLink').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => toast('已复制！打开微信粘贴发给客户')).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  toast('已复制！');
+}
+
+function createNew() {
+  document.getElementById('formPanel').style.display = 'block';
+  document.getElementById('resultPanel').style.display = 'none';
+  document.getElementById('bottomBar').style.display = 'block';
+  // 重置部分字段
+  document.getElementById('cName').value = '';
+  document.getElementById('sDesc').value = '';
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
