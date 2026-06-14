@@ -290,34 +290,23 @@ window.onload = function() {
   }
 
   try {
-    // 解码：先URI解码，再Base64解码
+    // 解码：Base64 → bytes → UTF-8 string（与admin.html的TextEncoder方式对应）
     var raw = decodeURIComponent(param);
-    // 还原URL安全的Base64字符
     raw = raw.replace(/-/g, '+').replace(/_/g, '/');
-    // 补齐padding
     while (raw.length % 4) { raw += '='; }
-    var bytes = atob(raw);
-    // UTF-8解码（兼容标准encodeURIComponent+btoa编码）
-    var decoded = '';
-    for (var i = 0; i < bytes.length; i++) {
-      var cc = bytes.charCodeAt(i);
-      if (cc < 128) {
-        decoded += String.fromCharCode(cc);
-      } else if ((cc & 0xE0) === 0xC0) {
-        // 2-byte UTF-8
-        var c2 = bytes.charCodeAt(++i);
-        decoded += String.fromCharCode(((cc & 0x1F) << 6) | (c2 & 0x3F));
-      } else if ((cc & 0xF0) === 0xE0) {
-        // 3-byte UTF-8 (中文)
-        var c2 = bytes.charCodeAt(++i);
-        var c3 = bytes.charCodeAt(++i);
-        decoded += String.fromCharCode(((cc & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F));
-      }
+    var binary = atob(raw);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
     }
-    orderData = JSON.parse(decoded);
+    var decoder = new TextDecoder('utf-8');
+    orderData = JSON.parse(decoder.decode(bytes));
   } catch (e) {
     showError('链接数据异常', '请联系工作人员重新发送');
-    console.error('Parse error:', e.message, 'param length:', param ? param.length : 0);
+    console.error('Parse error:', e.message, 'param length:', param ? param.length : 0, 'param preview:', param ? param.substring(0, 50) : '');
+    // 显示调试信息在页面上
+    document.querySelector('.error-panel p').textContent =
+      '错误: ' + e.message + ' (参数长度: ' + (param ? param.length : 0) + ')';
     return;
   }
 
