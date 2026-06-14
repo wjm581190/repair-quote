@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -22,7 +23,7 @@
                 padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
     .info-row:last-child { border-bottom: none; }
     .info-label { color: #666; font-size: 14px; flex-shrink: 0; }
-    .info-value { color: #333; font-size: 14px; text-align: right; font-weight: 500; max-width: 60%; }
+    .info-value { color: #333; font-size: 14px; text-align: right; font-weight: 500; max-width: 60%; word-break: break-all; }
     .service-tag { display: inline-block; background: #e6f7ff; color: #1890ff;
                    padding: 4px 10px; border-radius: 20px; font-size: 13px; }
     .fee-item { display: flex; justify-content: space-between; padding: 8px 0; }
@@ -41,7 +42,6 @@
     .sig-tip { font-size: 12px; color: #bbb; text-align: center; margin-top: 6px; }
     .btn-clear { display: block; margin: 8px auto 0; background: none; border: none;
                  color: #999; font-size: 13px; cursor: pointer; padding: 4px 12px; }
-    .btn-clear:hover { color: #666; }
     .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white;
                   padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
                   box-shadow: 0 -2px 12px rgba(0,0,0,0.08); z-index: 100; }
@@ -64,9 +64,15 @@
 
     /* 过期页 */
     .expired-panel { display: none; text-align: center; padding: 60px 20px; }
-    .expired-panel .icon { font-size: 64px; margin-bottom: 16px; }
+    .expired-panel .ic { font-size: 64px; margin-bottom: 16px; }
     .expired-panel h2 { font-size: 20px; color: #ff4d4f; margin-bottom: 8px; }
     .expired-panel p { font-size: 14px; color: #888; }
+
+    /* 错误页 */
+    .error-panel { text-align: center; padding: 60px 20px; }
+    .error-panel .ic { font-size: 64px; margin-bottom: 16px; }
+    .error-panel h2 { font-size: 20px; color: #999; }
+    .error-panel p { font-size: 13px; color:#bbb; margin-top: 8px; }
 
     .padding-bottom { height: 80px; }
     .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -139,7 +145,7 @@
 
 <!-- 已签字成功页 -->
 <div class="container" id="signedPanel" style="display:none;">
-  <div class="success-panel">
+  <div class="success-panel" style="display:block;">
     <div class="check">✅</div>
     <h2>已确认签字</h2>
     <p>您的签字已保存，请等待师傅联系上门服务。</p>
@@ -160,7 +166,7 @@
 <!-- 过期页 -->
 <div class="container" id="expiredPanel" style="display:none;">
   <div class="expired-panel">
-    <div class="icon">⏰</div>
+    <div class="ic">⏰</div>
     <h2>报价单已过期</h2>
     <p>此报价单已超过有效期，请联系工作人员获取最新报价。</p>
   </div>
@@ -174,47 +180,150 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script>
-let signaturePad = null;
-let orderData = null;
+// ========== 内嵌签名板（不依赖外部CDN）==========
+var SignaturePad = (function() {
+  function SignaturePad(canvas, opts) {
+    opts = opts || {};
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.penColor = opts.penColor || '#333';
+    this.minWidth = opts.minWidth || 1.5;
+    this.maxWidth = opts.maxWidth || 3;
+    this.backgroundColor = opts.backgroundColor || '#fafafa';
+    this._points = [];
+    this._drawing = false;
+    this._last = null;
+    this._init();
+  }
+  SignaturePad.prototype._init = function() {
+    var c = this.canvas;
+    var ratio = Math.max(window.devicePixelRatio || 1, 1);
+    c.width = c.offsetWidth * ratio;
+    c.height = c.offsetHeight * ratio;
+    this.ctx.scale(ratio, ratio);
+    if (this.backgroundColor) {
+      this.ctx.fillStyle = this.backgroundColor;
+      this.ctx.fillRect(0, 0, c.width, c.height);
+    }
+    var self = this;
+    function getPos(e) {
+      var r = c.getBoundingClientRect();
+      var x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+      var y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+      return { x: x, y: y, time: Date.now() };
+    }
+    c.addEventListener('mousedown', function(e) { self._start(getPos(e)); });
+    c.addEventListener('mousemove', function(e) { if(self._drawing) self._move(getPos(e)); });
+    c.addEventListener('mouseup', function() { self._end(); });
+    c.addEventListener('mouseleave', function() { if(self._drawing) self._end(); });
+    c.addEventListener('touchstart', function(e) { e.preventDefault(); self._start(getPos(e)); }, {passive:false});
+    c.addEventListener('touchmove', function(e) { e.preventDefault(); if(self._drawing) self._move(getPos(e)); }, {passive:false});
+    c.addEventListener('touchend', function(e) { e.preventDefault(); self._end(); }, {passive:false});
+    c.addEventListener('touchcancel', function() { self._end(); });
+  };
+  SignaturePad.prototype._start = function(p) {
+    this._drawing = true;
+    this._points = [p];
+    this._last = p;
+  };
+  SignaturePad.prototype._move = function(p) {
+    if (!this._drawing) return;
+    this._points.push(p);
+    this._drawLine(this._last, p);
+    this._last = p;
+  };
+  SignaturePad.prototype._end = function() {
+    this._drawing = false;
+    this._points = [];
+    this._last = null;
+  };
+  SignaturePad.prototype._drawLine = function(p1, p2) {
+    var ctx = this.ctx;
+    var dist = Math.sqrt(Math.pow(p2.x-p1.x,2)+Math.pow(p2.y-p1.y,2));
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.strokeStyle = this.penColor;
+    ctx.lineWidth = this.maxWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  };
+  SignaturePad.prototype.clear = function() {
+    var c = this.canvas;
+    var ratio = Math.max(window.devicePixelRatio || 1, 1);
+    this.ctx.clearRect(0, 0, c.width / ratio, c.height / ratio);
+    if (this.backgroundColor) {
+      this.ctx.fillStyle = this.backgroundColor;
+      this.ctx.fillRect(0, 0, c.width / ratio, c.height / ratio);
+    }
+  };
+  SignaturePad.prototype.isEmpty = function() {
+    var c = this.canvas;
+    var ctx = this.ctx;
+    var d = ctx.getImageData(0, 0, c.width, c.height).data;
+    for (var i = 3; i < d.length; i += 4) {
+      if (d[i] > 0) return false;
+    }
+    return true;
+  };
+  SignaturePad.prototype.toDataURL = function(type) {
+    return this.canvas.toDataURL(type || 'image/png');
+  };
+  return SignaturePad;
+})();
 
-// 图标映射
-const ICONS = { '电脑维修': '🖥️', '组装电脑': '🖱️', '监控安装维修': '📹', '家庭组网': '📶', '其他': '🔧' };
+// ========== 主逻辑 ==========
+var signaturePad = null;
+var orderData = null;
+
+var ICONS = { '电脑维修': '🖥️', '组装电脑': '🖱️', '监控安装维修': '📹', '家庭组网': '📶', '其他': '🔧' };
 
 window.onload = function() {
-  const param = getQuery('d');
+  var param = getQuery('d');
+
+  // 无参数 → 显示错误
   if (!param) {
-    document.getElementById('mainPanel').innerHTML = '<div style="text-align:center;padding:60px 20px;"><div style="font-size:64px;margin-bottom:16px;">❌</div><h2 style="color:#999;">无效的报价单链接</h2><p style="color:#bbb;margin-top:8px;">请联系工作人员获取正确链接</p></div>';
-    document.getElementById('bottomBar').style.display = 'none';
+    showError('无效的报价单链接', '请联系工作人员获取正确链接');
     return;
   }
 
   try {
-    // 解码：先URI解码，再Base64解码（与admin.html编码方式对应）
-    let raw = decodeURIComponent(param);
+    // 解码：先URI解码，再Base64解码
+    var raw = decodeURIComponent(param);
     // 还原URL安全的Base64字符
     raw = raw.replace(/-/g, '+').replace(/_/g, '/');
     // 补齐padding
     while (raw.length % 4) { raw += '='; }
-    const bytes = atob(raw);
-    // UTF-8解码
-    decoded = '';
-    for (let i = 0; i < bytes.length; i++) {
-      decoded += '%' + ('00' + bytes.charCodeAt(i).toString(16)).slice(-2);
+    var bytes = atob(raw);
+    // UTF-8解码（兼容标准encodeURIComponent+btoa编码）
+    var decoded = '';
+    for (var i = 0; i < bytes.length; i++) {
+      var cc = bytes.charCodeAt(i);
+      if (cc < 128) {
+        decoded += String.fromCharCode(cc);
+      } else if ((cc & 0xE0) === 0xC0) {
+        // 2-byte UTF-8
+        var c2 = bytes.charCodeAt(++i);
+        decoded += String.fromCharCode(((cc & 0x1F) << 6) | (c2 & 0x3F));
+      } else if ((cc & 0xF0) === 0xE0) {
+        // 3-byte UTF-8 (中文)
+        var c2 = bytes.charCodeAt(++i);
+        var c3 = bytes.charCodeAt(++i);
+        decoded += String.fromCharCode(((cc & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F));
+      }
     }
-    orderData = JSON.parse(decodeURIComponent(decoded));
+    orderData = JSON.parse(decoded);
   } catch (e) {
-    // 调试：显示原始参数帮助排查
+    showError('链接数据异常', '请联系工作人员重新发送');
     console.error('Parse error:', e.message, 'param length:', param ? param.length : 0);
-    document.getElementById('mainPanel').innerHTML = '<div style="text-align:center;padding:60px 20px;"><div style="font-size:64px;margin-bottom:16px;">❌</div><h2 style="color:#999;">链接数据异常</h2><p style="color:#bbb;margin-top:8px;">请联系工作人员重新发送</p><p style="color:#ccc;font-size:12px;margin-top:20px;">Debug: param=' + (param ? param.substring(0,50) + '...' : 'empty') + '</p></div>';
-    document.getElementById('bottomBar').style.display = 'none';
     return;
   }
 
-  // 检查是否已签字（存在localStorage记录）
-  const signedKey = 'signed_' + orderData.id;
-  const signedRecord = localStorage.getItem(signedKey);
+  // 检查是否已签字
+  var signedKey = 'signed_' + orderData.id;
+  var signedRecord = localStorage.getItem(signedKey);
   if (signedRecord) {
     showSigned(JSON.parse(signedRecord));
     return;
@@ -228,9 +337,16 @@ window.onload = function() {
     return;
   }
 
-  // 渲染数据
+  // 渲染
   renderOrder(orderData);
-  initSignaturePad();
+
+  // 初始化签名板
+  signaturePad = new SignaturePad(document.getElementById('sig-canvas'), {
+    backgroundColor: '#fafafa',
+    penColor: '#333',
+    minWidth: 1.5,
+    maxWidth: 3
+  });
 
   document.getElementById('agreeCheck').addEventListener('change', updateBtn);
   document.getElementById('sig-canvas').addEventListener('mouseup', updateBtn);
@@ -238,7 +354,7 @@ window.onload = function() {
 };
 
 function renderOrder(d) {
-  const icon = ICONS[d.serviceType] || '🔧';
+  var icon = ICONS[d.serviceType] || '🔧';
   document.getElementById('headerIcon').textContent = icon;
   document.getElementById('headerTitle').textContent = icon + ' ' + d.serviceType + '报价单';
   document.getElementById('orderInfo').textContent = '报价单号：' + d.id;
@@ -255,10 +371,9 @@ function renderOrder(d) {
   document.getElementById('vType').textContent = icon + ' ' + d.serviceType;
   document.getElementById('vDesc').textContent = d.problemDesc;
 
-  // 费用列表
-  let feeHtml = '';
-  (d.fees || []).forEach(f => {
-    feeHtml += `<div class="fee-item"><span class="name">${esc(f.name)}</span><span class="amount">¥${f.amount}</span></div>`;
+  var feeHtml = '';
+  (d.fees || []).forEach(function(f) {
+    feeHtml += '<div class="fee-item"><span class="name">' + esc(f.name) + '</span><span class="amount">¥' + f.amount + '</span></div>';
   });
   document.getElementById('feeList').innerHTML = feeHtml;
   document.getElementById('vTotal').textContent = '¥' + d.total;
@@ -270,34 +385,24 @@ function renderOrder(d) {
   }
 }
 
-function initSignaturePad() {
-  const canvas = document.getElementById('sig-canvas');
-  const ratio = Math.max(window.devicePixelRatio || 1, 1);
-  canvas.width = canvas.offsetWidth * ratio;
-  canvas.height = 160 * ratio;
-  canvas.getContext('2d').scale(ratio, ratio);
-  signaturePad = new SignaturePad(canvas, { backgroundColor: '#fafafa', penColor: '#333', minWidth: 1.5, maxWidth: 3 });
-}
-
 function clearSig() {
-  signaturePad.clear();
+  if (signaturePad) signaturePad.clear();
   updateBtn();
 }
 
 function updateBtn() {
-  const ok = document.getElementById('agreeCheck').checked && !signaturePad.isEmpty();
+  var ok = document.getElementById('agreeCheck').checked && signaturePad && !signaturePad.isEmpty();
   document.getElementById('confirmBtn').disabled = !ok;
 }
 
 function submitSig() {
-  if (signaturePad.isEmpty()) { toast('请先签字'); return; }
+  if (!signaturePad || signaturePad.isEmpty()) { toast('请先签字'); return; }
   if (!document.getElementById('agreeCheck').checked) { toast('请先同意服务协议'); return; }
 
-  const sigData = signaturePad.toDataURL('image/png');
-  const signTime = new Date().toLocaleString('zh-CN');
+  var sigData = signaturePad.toDataURL('image/png');
+  var signTime = new Date().toLocaleString('zh-CN');
 
-  // 保存签字记录到localStorage
-  const record = {
+  var record = {
     id: orderData.id,
     signTime: signTime,
     signature: sigData,
@@ -311,23 +416,29 @@ function submitSig() {
 function showSigned(record) {
   document.getElementById('mainPanel').style.display = 'none';
   document.getElementById('bottomBar').style.display = 'none';
-  const panel = document.getElementById('signedPanel');
+  var panel = document.getElementById('signedPanel');
   panel.style.display = 'block';
   document.getElementById('sigPreview').innerHTML = '<img src="' + record.signature + '">';
   document.getElementById('signTime').textContent = record.signTime;
   document.getElementById('signSummary').textContent = record.orderData.serviceType + ' - ¥' + record.orderData.total;
 }
 
+function showError(title, msg) {
+  document.getElementById('mainPanel').innerHTML =
+    '<div class="error-panel"><div class="ic">❌</div><h2>' + title + '</h2><p>' + msg + '</p></div>';
+  document.getElementById('bottomBar').style.display = 'none';
+}
+
 function getQuery(key) { return new URLSearchParams(location.search).get(key); }
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 function toast(msg) {
-  const el = document.getElementById('toast');
+  var el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.remove('show');
   void el.offsetWidth;
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2200);
+  setTimeout(function(){ el.classList.remove('show'); }, 2200);
 }
 </script>
 </body>
