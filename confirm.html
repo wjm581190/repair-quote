@@ -191,21 +191,19 @@ window.onload = function() {
   }
 
   try {
-    // 尝试多种解码方式兼容不同浏览器/协议
-    let raw = param;
-    let decoded = '';
-    // 先尝试URI安全Base64解码
-    try {
-      const fixed = (raw.replace(/-/g, '+').replace(/_/g, '/')) + '==='.slice(0, (raw.length + 3) % 4 || 0);
-      decoded = decodeURIComponent(escape(atob(fixed)));
-    } catch(e1) {
-      try {
-        decoded = atob(decodeURIComponent(raw));
-      } catch(e2) {
-        decoded = atob(raw);
-      }
+    // 解码：先URI解码，再Base64解码（与admin.html编码方式对应）
+    let raw = decodeURIComponent(param);
+    // 还原URL安全的Base64字符
+    raw = raw.replace(/-/g, '+').replace(/_/g, '/');
+    // 补齐padding
+    while (raw.length % 4) { raw += '='; }
+    const bytes = atob(raw);
+    // UTF-8解码
+    decoded = '';
+    for (let i = 0; i < bytes.length; i++) {
+      decoded += '%' + ('00' + bytes.charCodeAt(i).toString(16)).slice(-2);
     }
-    orderData = JSON.parse(decoded);
+    orderData = JSON.parse(decodeURIComponent(decoded));
   } catch (e) {
     // 调试：显示原始参数帮助排查
     console.error('Parse error:', e.message, 'param length:', param ? param.length : 0);
